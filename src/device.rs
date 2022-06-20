@@ -195,6 +195,11 @@ impl Device {
     pub fn path(&self) -> io::Result<PathBuf> {
         self.blocks.resolve(&self.devno)
     }
+
+    #[inline]
+    pub fn reread_partition_table(&self) -> io::Result<()> {
+        self.blocks.reread_partition_table(&self.devno)
+    }
 }
 
 impl std::fmt::Debug for Device {

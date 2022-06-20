@@ -1,7 +1,8 @@
 use std::{
     borrow::Borrow,
+    fs::OpenOptions,
     io,
-    os::unix::prelude::{FileTypeExt, MetadataExt},
+    os::unix::prelude::{AsRawFd, FileTypeExt, MetadataExt},
     path::{Path, PathBuf},
 };
 
@@ -21,6 +22,8 @@ pub(crate) struct Blocks {
     sysfs: SysFs,
     devfs: DevFs,
 }
+
+const BLKRRPART: u64 = 4703;
 
 impl Blocks {
     pub fn new() -> io::Result<Self> {
@@ -235,5 +238,23 @@ impl Blocks {
     #[inline]
     pub fn blocks(&self) -> io::Result<BlocksIterator> {
         self.sysfs().blocks()
+    }
+
+    pub fn reread_partition_table(&self, devno: &Devno) -> io::Result<()> {
+        let p = self.devfs().resolve(devno)?;
+        let f = OpenOptions::new()
+            .read(true)
+            .write(false)
+            .create_new(false)
+            .truncate(false)
+            .create(false)
+            .append(false)
+            .open(p)?;
+        let ret = unsafe { libc::ioctl(f.as_raw_fd() as _, BLKRRPART) };
+        if ret < 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(())
+        }
     }
 }
